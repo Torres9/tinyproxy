@@ -29,6 +29,7 @@
 #include "log.h"
 #include "base64.h"
 #include "basicauth.h"
+#include <stdlib.h>
 
 #ifdef UPSTREAM_SUPPORT
 const char *
@@ -201,16 +202,24 @@ upstream_cleanup:
  */
 struct upstream *upstream_get (char *host, struct upstream *up)
 {
+#define UPSTREAM_SIZE 10
+        int cnt = 0;
+        struct upstream* choices[UPSTREAM_SIZE];
         while (up) {
                 if (up->target.type == HST_NONE)
                         break;
 
-                if (hostspec_match(host, &up->target))
-                        break;
+                if (hostspec_match(host, &up->target) && cnt < UPSTREAM_SIZE) {
+                        choices[cnt] = up;
+                        cnt += 1;
+                }
 
                 up = up->next;
         }
 
+        if (cnt > 0) {
+                up = choices[rand() % cnt];
+        }
         if (up && (!up->host))
                 up = NULL;
 
@@ -221,6 +230,7 @@ struct upstream *upstream_get (char *host, struct upstream *up)
                 log_message (LOG_INFO, "No upstream proxy for %s", host);
 
         return up;
+#undef UPSTREAM_SIZE
 }
 
 void free_upstream_list (struct upstream *up)
